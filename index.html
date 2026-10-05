@@ -15,7 +15,12 @@ h1{font-size:18px;margin:0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px}
 h2{font-size:15px;margin:0 0 12px;color:var(--mute);font-weight:600}
 .big{font-size:64px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;text-align:center}
+.big{display:flex;justify-content:center;align-items:baseline}
 .big small{font-size:20px;color:var(--mute);font-weight:500;margin-left:6px}
+.big input{font:inherit;color:inherit;width:5.6ch;text-align:center;background:transparent;border:0;border-bottom:3px dotted var(--line);border-radius:0;padding:0;-moz-appearance:textfield;appearance:textfield}
+.big input::-webkit-outer-spin-button,.big input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.big input:focus{outline:none;border-bottom:3px solid var(--acc)}
+.hint{text-align:center;color:var(--mute);font-size:13px;margin:8px 0 0}
 .row{display:flex;gap:10px;align-items:center}
 button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:12px 14px;min-height:48px}
 button:focus-visible,input:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
@@ -46,7 +51,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:32px;heigh
 <p id="note"></p>
 
 <section class="card"><h2>Speed</h2>
-<div class="big"><span id="rpmv">10.0</span><small>rpm</small></div>
+<div class="big"><input id="rpmv" type="number" inputmode="decimal" step="0.1" min="0.1" max="100" value="10.0" aria-label="Type an exact speed in rpm"><small>rpm</small></div>
+<p class="hint">Tap the number to type an exact speed (0.1 to 100)</p>
 <div class="row" style="margin-top:12px">
 <button class="fine" id="minus" aria-label="Decrease 0.1 rpm">−</button>
 <input type="range" id="rpm" min="1" max="1000" value="100" aria-label="Pump speed in rpm">
@@ -114,7 +120,7 @@ async function connect(){
 }
 const mmss=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 function render(){
-  $('rpmv').textContent=S.rpm.toFixed(1);
+  if(document.activeElement!==$('rpmv'))$('rpmv').value=S.rpm.toFixed(1);
   if(!drag)$('rpm').value=Math.round(S.rpm*10);
   $('rpm').style.setProperty('--p',((S.rpm*10-1)/999*100)+'%');
   $('cw').classList.toggle('on',S.cw);$('ccw').classList.toggle('on',!S.cw);
@@ -125,7 +131,7 @@ function render(){
   $('tinfo').hidden=!timing;$('tbtn').disabled=timing||!online;
   $('left').textContent=mmss(S.left);
   $('fill').style.width=S.total?((S.total-S.left)/S.total*100)+'%':'0';
-  for(const id of['rpm','minus','plus','cw','ccw','go','tm','ts'])$(id).disabled=!online;
+  for(const id of['rpmv','rpm','minus','plus','cw','ccw','go','tm','ts'])$(id).disabled=!online;
   const c=$('conn');c.textContent=online?'Disconnect':'Connect';c.classList.toggle('off',online);
   const l=$('link');
   if(!online){l.textContent='Not connected';l.className='chip bad'}
@@ -136,6 +142,15 @@ const rpm=$('rpm');
 rpm.addEventListener('input',()=>{drag=true;S.rpm=rpm.value/10;render();sendRpm()});
 rpm.addEventListener('change',()=>{drag=false;sendRpm()});
 function nudge(d){S.rpm=Math.min(100,Math.max(0.1,Math.round(S.rpm*10+d)/10));render();sendRpm()}
+const rv=$('rpmv');
+rv.addEventListener('focus',()=>rv.select());
+rv.addEventListener('keydown',e=>{if(e.key==='Enter')rv.blur()});
+rv.addEventListener('change',()=>{
+  const v=parseFloat(rv.value);
+  if(!isNaN(v)){S.rpm=Math.min(100,Math.max(0.1,Math.round(v*10)/10));sendRpm()}
+  render();
+});
+rv.addEventListener('blur',render);
 $('minus').onclick=()=>nudge(-1);$('plus').onclick=()=>nudge(1);
 $('cw').onclick=()=>{S.cw=true;render();tx('D 1')};
 $('ccw').onclick=()=>{S.cw=false;render();tx('D 0')};
